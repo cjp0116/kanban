@@ -1,13 +1,14 @@
 import { Pool, PoolClient } from 'pg';
 import postgres from 'postgres';
 
-const sql = postgres(`postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`, { prepare: false });
+export const sql = postgres(`postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`)
+
 
 // Database configuration
 const pool = new Pool({
   user: process.env.POSTGRES_USER || 'postgres',
   host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'kanban',
+  database: process.env.POSTGRES_DB || 'kanban_test',
   password: process.env.POSTGRES_PASSWORD || '',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -84,7 +85,7 @@ export const db = {
                 'id', cf.id,
                 'name', cf.name,
                 'value', cf.value
-              )
+              ) ORDER BY cf.id
             ) FILTER (WHERE cf.id IS NOT NULL),
             '[]'::json
           ) as custom_fields
@@ -165,7 +166,7 @@ export const db = {
     }
   },
 
-  // Update a task
+
   async updateTask(
     taskId: string,
     updates: {
@@ -176,7 +177,7 @@ export const db = {
       columnId?: string
     },
   ) {
-    // Build the update query conditionally
+   
     let query = sql`UPDATE tasks SET updated_at = NOW()`
 
     if (updates.title !== undefined) {
@@ -204,7 +205,6 @@ export const db = {
     }
   },
 
-  // Delete a task
   async deleteTask(taskId: string) {
     await sql`DELETE FROM tasks WHERE id = ${taskId}`
   },
@@ -231,10 +231,7 @@ export const db = {
     taskId: string
     position: number
   }) {
-    // Check if the ID is a valid UUID format
-    const isValidUUID = subtask.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(subtask.id)
-
-    if (subtask.id && isValidUUID) {
+    if (subtask.id) {
       // Update existing subtask with valid UUID
       await sql`
         UPDATE subtasks 
@@ -242,7 +239,7 @@ export const db = {
         WHERE id = ${subtask.id}
       `
     } else {
-      // Create new subtask (either no ID or invalid UUID format)
+      // Create new subtask
       await sql`
         INSERT INTO subtasks (title, completed, position, task_id)
         VALUES (${subtask.title}, ${subtask.completed}, ${subtask.position}, ${subtask.taskId})
@@ -262,10 +259,7 @@ export const db = {
     value: string
     taskId: string
   }) {
-    // Check if the ID is a valid UUID format
-    const isValidUUID = field.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(field.id)
-
-    if (field.id && isValidUUID) {
+    if (field.id) {
       // Update existing custom field with valid UUID
       await sql`
         UPDATE custom_fields 
@@ -273,7 +267,7 @@ export const db = {
         WHERE id = ${field.id}
       `
     } else {
-      // Create new custom field (either no ID or invalid UUID format)
+      // Create new custom field
       await sql`
         INSERT INTO custom_fields (name, value, task_id)
         VALUES (${field.name}, ${field.value}, ${field.taskId})
@@ -429,4 +423,3 @@ process.on('SIGINT', () => {
   pool.end();
 });
 
-export default pool; 

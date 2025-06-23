@@ -18,7 +18,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import type { Rule, Column } from "@/types/kanban"
-import { generateId } from "@/lib/utils"
 
 interface AutomationRulesProps {
   rules: Rule[]
@@ -37,14 +36,14 @@ export default function AutomationRules({
 }: AutomationRulesProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [newRule, setNewRule] = useState<Rule>({
-    id: `rule-${generateId()}`,
+    id: "",
     name: "",
     condition: {
-      type: "due-date",
-      operator: "is-overdue",
+      type: "due_date",
+      operator: "is_overdue",
     },
     action: {
-      type: "move-to-column",
+      type: "move_to_column",
       targetColumnId: columns[0]?.id || "",
     },
     enabled: true,
@@ -55,14 +54,13 @@ export default function AutomationRules({
 
     onAddRule(newRule)
     setNewRule({
-      id: `rule-${generateId()}`,
       name: "",
       condition: {
-        type: "due-date",
-        operator: "is-overdue",
+        type: "due_date",
+        operator: "is_overdue",
       },
       action: {
-        type: "move-to-column",
+        type: "move_to_column",
         targetColumnId: columns[0]?.id || "",
       },
       enabled: true,
@@ -115,18 +113,18 @@ export default function AutomationRules({
                 <Label className="dark:text-gray-300">When (Condition)</Label>
                 <Select
                   value={newRule.condition.type}
-                  onValueChange={(value: "due-date" | "subtasks-completed" | "custom-field") =>
+                  onValueChange={(value: "due_date" | "subtasks_completed" | "custom_field" | "due_date") =>
                     setNewRule({
                       ...newRule,
                       condition: {
                         ...newRule.condition,
                         type: value,
                         operator:
-                          value === "due-date"
-                            ? "is-overdue"
-                            : value === "subtasks-completed"
-                              ? "all-completed"
-                              : "equals",
+                          value === "due_date"
+                            ? "is_overdue"
+                            : value === "subtasks_completed"
+                              ? "all_completed"
+                              : "equal",
                       },
                     })
                   }
@@ -135,16 +133,16 @@ export default function AutomationRules({
                     <SelectValue placeholder="Select condition type" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                    <SelectItem value="due-date">Due Date</SelectItem>
-                    <SelectItem value="subtasks-completed">Subtasks</SelectItem>
-                    <SelectItem value="custom-field">Custom Field</SelectItem>
+                    <SelectItem value="due_date">Due Date</SelectItem>
+                    <SelectItem value="subtasks_completed">Subtasks</SelectItem>
+                    <SelectItem value="custom_field">Custom Field</SelectItem>
                   </SelectContent>
                 </Select>
 
-                {newRule.condition.type === "due-date" && (
+                {newRule.condition.type === "due_date" && (
                   <Select
                     value={newRule.condition.operator}
-                    onValueChange={(value: "is-overdue") =>
+                    onValueChange={(value: "is_overdue") =>
                       setNewRule({
                         ...newRule,
                         condition: { ...newRule.condition, operator: value },
@@ -155,15 +153,15 @@ export default function AutomationRules({
                       <SelectValue placeholder="Select operator" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                      <SelectItem value="is-overdue">Is Overdue</SelectItem>
+                      <SelectItem value="is_overdue">Is Overdue</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
 
-                {newRule.condition.type === "subtasks-completed" && (
+                {newRule.condition.type === "subtasks_completed" && (
                   <Select
                     value={newRule.condition.operator}
-                    onValueChange={(value: "all-completed") =>
+                    onValueChange={(value: "all_completed") =>
                       setNewRule({
                         ...newRule,
                         condition: { ...newRule.condition, operator: value },
@@ -174,12 +172,12 @@ export default function AutomationRules({
                       <SelectValue placeholder="Select operator" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                      <SelectItem value="all-completed">All Completed</SelectItem>
+                      <SelectItem value="all_completed">All Completed</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
 
-                {newRule.condition.type === "custom-field" && (
+                {newRule.condition.type === "custom_field" && (
                   <>
                     <Input
                       placeholder="Field name"
@@ -194,7 +192,7 @@ export default function AutomationRules({
                     />
                     <Select
                       value={newRule.condition.operator}
-                      onValueChange={(value: "equals" | "not-equals" | "contains") =>
+                      onValueChange={(value: "equal" | "not_equal" | "contain" | "equals" | "not_equal" | "contain") =>
                         setNewRule({
                           ...newRule,
                           condition: { ...newRule.condition, operator: value },
@@ -205,9 +203,9 @@ export default function AutomationRules({
                         <SelectValue placeholder="Select operator" />
                       </SelectTrigger>
                       <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-                        <SelectItem value="equals">Equals</SelectItem>
-                        <SelectItem value="not-equals">Not Equals</SelectItem>
-                        <SelectItem value="contains">Contains</SelectItem>
+                        <SelectItem value="equal">Equal</SelectItem>
+                        <SelectItem value="not_equal">Not Equal</SelectItem>
+                        <SelectItem value="contain">Contain</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
@@ -243,7 +241,7 @@ export default function AutomationRules({
                   </SelectTrigger>
                   <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                     {columns.map((column) => (
-                      <SelectItem key={column.id} value={column.id}>
+                      <SelectItem key={`column-${column.id}`} value={column.id}>
                         Move to {column.title}
                       </SelectItem>
                     ))}
@@ -274,15 +272,15 @@ export default function AutomationRules({
         <div className="space-y-2">
           {rules.map((rule) => (
             <div
-              key={rule.id}
+              key={`rule-${rule.id}`}
               className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-md border dark:border-gray-700"
             >
               <div className="flex-1">
                 <div className="font-medium dark:text-gray-200">{rule.name}</div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {rule.condition.type === "due-date" && "When task is overdue"}
-                  {rule.condition.type === "subtasks-completed" && "When all subtasks are completed"}
-                  {rule.condition.type === "custom-field" &&
+                  {rule.condition.type === "due_date" && "When task is overdue"}
+                  {rule.condition.type === "subtasks_completed" && "When all subtasks are completed"}
+                  {rule.condition.type === "custom_field" &&
                     `When ${rule.condition.field} ${rule.condition.operator} ${rule.condition.value}`}
                   {" → "}
                   Move to {columns.find((col) => col.id === rule.action.targetColumnId)?.title}

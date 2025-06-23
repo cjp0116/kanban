@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Droppable, Draggable } from "@hello-pangea/dnd"
 import { MoreHorizontal, Plus, Trash2, Palette } from "lucide-react"
-import TaskCard from "./task-card"
+import TaskCard from "@/components/task-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { Task, Column as ColumnType } from "@/types/kanban"
-import { generateId } from "@/lib/utils"
+
 
 // Add predefined colors with dark mode variants
 const COLUMN_COLORS = [
@@ -50,7 +50,6 @@ export default function Column({
     if (!newTaskTitle.trim()) return
 
     const newTask: Task = {
-      id: `task-${generateId()}`,
       title: newTaskTitle,
       description: newTaskDescription,
       status: column.title,
@@ -125,7 +124,7 @@ export default function Column({
         {(provided) => (
           <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 p-2 overflow-y-auto">
             {column.tasks.map((task, index) => (
-              <Draggable key={task.id} draggableId={task.id} index={index}>
+              <Draggable key={`task-${task.id}`} draggableId={task.id} index={index}>
                 {(provided) => (
                   <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
                     <TaskCard

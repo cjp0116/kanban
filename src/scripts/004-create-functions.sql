@@ -14,11 +14,11 @@ SELECT t.id as task_id,
   t.column_id as current_column_id,
   ar.action_target_column_id as target_column_id,
   CASE
-    WHEN ar.condition_type = 'due-date'
-    AND ar.condition_operator = 'is-overdue' THEN 'Task is overdue'
-    WHEN ar.condition_type = 'subtasks-completed'
-    AND ar.condition_operator = 'all-completed' THEN 'All subtasks completed'
-    WHEN ar.condition_type = 'custom-field' THEN 'Custom field condition met: ' || ar.condition_field || ' ' || ar.condition_operator || ' ' || COALESCE(ar.condition_value, '')
+    WHEN ar.condition_type = 'due_date'
+    AND ar.condition_operator = 'is_overdue' THEN 'Task is overdue'
+    WHEN ar.condition_type = 'subtasks_completed'
+    AND ar.condition_operator = 'all_completed' THEN 'All subtasks completed'
+    WHEN ar.condition_type = 'custom_field' THEN 'Custom field condition met: ' || ar.condition_field || ' ' || ar.condition_operator || ' ' || COALESCE(ar.condition_value, '')
     ELSE 'Unknown condition'
   END as reason
 FROM tasks t
@@ -28,16 +28,16 @@ WHERE ar.enabled = TRUE
   AND (
     -- Due date conditions
     (
-      ar.condition_type = 'due-date'
-      AND ar.condition_operator = 'is-overdue'
+      ar.condition_type = 'due_date'
+      AND ar.condition_operator = 'is_overdue'
       AND t.due_date IS NOT NULL
       AND t.due_date < NOW()
       AND t.status != 'Completed'
     )
     OR -- Subtasks completed conditions
     (
-      ar.condition_type = 'subtasks-completed'
-      AND ar.condition_operator = 'all-completed'
+      ar.condition_type = 'subtasks_completed'
+      AND ar.condition_operator = 'all_completed'
       AND EXISTS (
         SELECT 1
         FROM subtasks
@@ -52,7 +52,7 @@ WHERE ar.enabled = TRUE
     )
     OR -- Custom field conditions
     (
-      ar.condition_type = 'custom-field'
+      ar.condition_type = 'custom_field'
       AND ar.condition_field IS NOT NULL
       AND EXISTS (
         SELECT 1
@@ -61,15 +61,15 @@ WHERE ar.enabled = TRUE
           AND cf.name = ar.condition_field
           AND (
             (
-              ar.condition_operator = 'equals'
+              ar.condition_operator = 'equal'
               AND cf.value = ar.condition_value
             )
             OR (
-              ar.condition_operator = 'not-equals'
+              ar.condition_operator = 'not_equal'
               AND cf.value != ar.condition_value
             )
             OR (
-              ar.condition_operator = 'contains'
+              ar.condition_operator = 'contain'
               AND cf.value ILIKE '%' || ar.condition_value || '%'
             )
           )

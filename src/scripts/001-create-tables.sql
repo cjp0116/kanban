@@ -1,111 +1,185 @@
--- Create tables for Kanban Board application
--- Users table (for future user management)
-CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Boards table (for multiple boards per user)
-CREATE TABLE IF NOT EXISTS boards (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Columns table
-CREATE TABLE IF NOT EXISTS columns (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
-  color VARCHAR(100),
-  position INTEGER NOT NULL DEFAULT 0,
-  board_id UUID REFERENCES boards(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Tasks table
-CREATE TABLE IF NOT EXISTS tasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(500) NOT NULL,
-  description TEXT,
-  status VARCHAR(100) NOT NULL,
-  due_date TIMESTAMP WITH TIME ZONE,
-  position INTEGER NOT NULL DEFAULT 0,
-  column_id UUID REFERENCES columns(id) ON DELETE CASCADE,
-  board_id UUID REFERENCES boards(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Subtasks table
-CREATE TABLE IF NOT EXISTS subtasks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(500) NOT NULL,
-  completed BOOLEAN DEFAULT FALSE,
-  position INTEGER NOT NULL DEFAULT 0,
-  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Custom fields table
-CREATE TABLE IF NOT EXISTS custom_fields (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  value TEXT,
-  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Automation rules table
-CREATE TABLE IF NOT EXISTS automation_rules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  enabled BOOLEAN DEFAULT TRUE,
-  condition_type VARCHAR(50) NOT NULL,
-  -- 'due-date', 'subtasks-completed', 'custom-field'
-  condition_operator VARCHAR(50) NOT NULL,
-  -- 'is-overdue', 'all-completed', 'equals', etc.
-  condition_field VARCHAR(255),
-  -- for custom field conditions
-  condition_value TEXT,
-  -- for custom field conditions
-  action_type VARCHAR(50) NOT NULL,
-  -- 'move-to-column'
-  action_target_column_id UUID REFERENCES columns(id) ON DELETE CASCADE,
-  board_id UUID REFERENCES boards(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_boards_user_id ON boards(user_id);
-CREATE INDEX IF NOT EXISTS idx_columns_board_id ON columns(board_id);
-CREATE INDEX IF NOT EXISTS idx_columns_position ON columns(position);
-CREATE INDEX IF NOT EXISTS idx_tasks_column_id ON tasks(column_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_board_id ON tasks(board_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_position ON tasks(position);
-CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
-CREATE INDEX IF NOT EXISTS idx_custom_fields_task_id ON custom_fields(task_id);
-CREATE INDEX IF NOT EXISTS idx_automation_rules_board_id ON automation_rules(board_id);
--- Add updated_at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW();
-RETURN NEW;
+-- Useful functions for the Kanban Board
+-- Function to get tasks that should be moved by automation rules
+CREATE OR REPLACE FUNCTION get_tasks_for_automation() RETURNS TABLE (
+    task_id UUID,
+    rule_id UUID,
+    rule_name VARCHAR,
+    current_column_id UUID,
+    target_column_id UUID,
+    reason TEXT
+  ) AS $$ BEGIN RETURN QUERY
+SELECT t.id as task_id,
+  ar.id as rule_id,
+  ar.name as rule_name,
+  t.column_id as current_column_id,
+  ar.action_target_column_id as target_column_id,
+  CASE
+    WHEN ar.condition_type = 'due_date'
+    AND ar.condition_operator = 'is_overdue' THEN 'Task is overdue'
+    WHEN ar.condition_type = 'subtasks_completed'
+    AND ar.condition_operator = 'all_completed' THEN 'All subtasks completed'
+    WHEN ar.condition_type = 'custom_field' THEN 'Custom field condition met: ' || ar.condition_field || ' ' || ar.condition_operator || ' ' || COALESCE(ar.condition_value, '')
+    ELSE 'Unknown condition'
+  END as reason
+FROM tasks t
+  JOIN automation_rules ar ON t.board_id = ar.board_id
+WHERE ar.enabled = TRUE
+  AND t.column_id != ar.action_target_column_id -- Don't move if already in target column
+  AND (
+    -- Due date conditions
+    (
+      ar.condition_type = 'due_date'
+      AND ar.condition_operator = 'is_overdue'
+      AND t.due_date IS NOT NULL
+      AND t.due_date < NOW()
+      AND t.status != 'Completed'
+    )
+    OR -- Subtasks completed conditions
+    (
+      ar.condition_type = 'subtasks_completed'
+      AND ar.condition_operator = 'all_completed'
+      AND EXISTS (
+        SELECT 1
+        FROM subtasks
+        WHERE task_id = t.id
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM subtasks
+        WHERE task_id = t.id
+          AND completed = FALSE
+      )
+    )
+    OR -- Custom field conditions
+    (
+      ar.condition_type = 'custom_field'
+      AND ar.condition_field IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM custom_fields cf
+        WHERE cf.task_id = t.id
+          AND cf.name = ar.condition_field
+          AND (
+            (
+              ar.condition_operator = 'equal'
+              AND cf.value = ar.condition_value
+            )
+            OR (
+              ar.condition_operator = 'not_equal'
+              AND cf.value != ar.condition_value
+            )
+            OR (
+              ar.condition_operator = 'contain'
+              AND cf.value ILIKE '%' || ar.condition_value || '%'
+            )
+          )
+      )
+    )
+  );
 END;
-$$ language 'plpgsql';
--- Create triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE
-UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_boards_updated_at BEFORE
-UPDATE ON boards FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_columns_updated_at BEFORE
-UPDATE ON columns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_tasks_updated_at BEFORE
-UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_subtasks_updated_at BEFORE
-UPDATE ON subtasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_custom_fields_updated_at BEFORE
-UPDATE ON custom_fields FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_automation_rules_updated_at BEFORE
-UPDATE ON automation_rules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+$$ LANGUAGE plpgsql;
+-- Function to move a task to a different column
+CREATE OR REPLACE FUNCTION move_task_to_column(
+    p_task_id UUID,
+    p_target_column_id UUID
+  ) RETURNS BOOLEAN AS $$
+DECLARE target_column_title VARCHAR;
+task_count INTEGER;
+BEGIN -- Get the target column title
+SELECT title INTO target_column_title
+FROM columns
+WHERE id = p_target_column_id;
+IF target_column_title IS NULL THEN RAISE EXCEPTION 'Target column not found';
+END IF;
+-- Get the current max position in the target column
+SELECT COALESCE(MAX(position), -1) + 1 INTO task_count
+FROM tasks
+WHERE column_id = p_target_column_id;
+-- Update the task
+UPDATE tasks
+SET column_id = p_target_column_id,
+  status = target_column_title,
+  position = task_count,
+  updated_at = NOW()
+WHERE id = p_task_id;
+RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+-- Function to get board summary
+CREATE OR REPLACE FUNCTION get_board_summary(p_board_id UUID) RETURNS JSON AS $$
+DECLARE result JSON;
+BEGIN
+SELECT json_build_object(
+    'board_id',
+    b.id,
+    'board_title',
+    b.title,
+    'total_tasks',
+    COUNT(t.id),
+    'completed_tasks',
+    COUNT(
+      CASE
+        WHEN t.status = 'Completed' THEN 1
+      END
+    ),
+    'overdue_tasks',
+    COUNT(
+      CASE
+        WHEN t.due_date IS NOT NULL
+        AND t.due_date < NOW()
+        AND t.status != 'Completed' THEN 1
+      END
+    ),
+    'blocked_tasks',
+    COUNT(
+      CASE
+        WHEN t.status = 'Blocked' THEN 1
+      END
+    ),
+    'completion_percentage',
+    ROUND(
+      CASE
+        WHEN COUNT(t.id) > 0 THEN (
+          COUNT(
+            CASE
+              WHEN t.status = 'Completed' THEN 1
+            END
+          )::DECIMAL / COUNT(t.id)
+        ) * 100
+        ELSE 0
+      END,
+      2
+    ),
+    'columns',
+    json_agg(
+      json_build_object(
+        'id',
+        c.id,
+        'title',
+        c.title,
+        'task_count',
+        c.task_count
+      )
+      ORDER BY c.position
+    )
+  ) INTO result
+FROM boards b
+  LEFT JOIN tasks t ON b.id = t.board_id
+  LEFT JOIN (
+    SELECT c.id,
+      c.title,
+      c.position,
+      COUNT(t.id) as task_count
+    FROM columns c
+      LEFT JOIN tasks t ON c.id = t.column_id
+    WHERE c.board_id = p_board_id
+    GROUP BY c.id,
+      c.title,
+      c.position
+  ) c ON TRUE
+WHERE b.id = p_board_id
+GROUP BY b.id,
+  b.title;
+RETURN result;
+END;
+$$ LANGUAGE plpgsql;

@@ -5,7 +5,7 @@ export async function GET(request: NextRequest, { params }: { params: { boardId:
   try {
     const { boardId } = await params
     const data = await db.getBoardWithData(boardId)
-
+    console.log(data, 'board data')
     return NextResponse.json(data)
   } catch (error) {
     console.error("Error fetching board:", error)

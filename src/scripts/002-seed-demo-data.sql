@@ -545,9 +545,9 @@ VALUES (
     '550e8400-e29b-41d4-a716-446655440200',
     'Move overdue tasks to Blocked',
     TRUE,
-    'due-date',
-    'is-overdue',
-    'move-to-column',
+    'due_date',
+    'is_overdue',
+    'move_to_column',
     '550e8400-e29b-41d4-a716-446655440012',
     '550e8400-e29b-41d4-a716-446655440001'
   ),
@@ -555,9 +555,9 @@ VALUES (
     '550e8400-e29b-41d4-a716-446655440201',
     'Move completed tasks when all subtasks done',
     TRUE,
-    'subtasks-completed',
-    'all-completed',
-    'move-to-column',
+    'subtasks_completed',
+    'all_completed',
+    'move_to_column',
     '550e8400-e29b-41d4-a716-446655440013',
     '550e8400-e29b-41d4-a716-446655440001'
   ) ON CONFLICT (id) DO NOTHING;

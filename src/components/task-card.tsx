@@ -25,6 +25,13 @@ export default function TaskCard({ task, onClick, onDuplicate }: TaskCardProps) 
     onDuplicate()
   }
 
+  // Deduplicate custom fields to prevent rendering duplicates
+  const uniqueCustomFields = task.customFields
+    .filter(field => !field._deleted && field.value)
+    .filter((field, index, self) =>
+      self.findIndex(f => f.id === field.id) === index
+    )
+
   return (
     <div
       className="mb-2 p-3 bg-white dark:bg-gray-800 rounded-md shadow-sm border dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer group"
@@ -65,20 +72,17 @@ export default function TaskCard({ task, onClick, onDuplicate }: TaskCardProps) 
           </div>
         )}
 
-        {task.customFields.map(
-          (field) =>
-            field.value && (
-              <div
-                key={field.id}
-                className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded-md"
-              >
-                {field.name}:{" "}
-                {field.value.toString().length > 10
-                  ? field.value.toString().substring(0, 10) + "..."
-                  : field.value.toString()}
-              </div>
-            ),
-        )}
+        {uniqueCustomFields.map((field) => (
+          <div
+            key={field.id}
+            className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 px-2 py-1 rounded-md"
+          >
+            {field.name}:{" "}
+            {field.value.toString().length > 10
+              ? field.value.toString().substring(0, 10) + "..."
+              : field.value.toString()}
+          </div>
+        ))}
       </div>
     </div>
   )

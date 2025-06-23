@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Task, Column, Subtask, CustomField } from "@/types/kanban"
-import { formatDate, generateId } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,7 +95,6 @@ export default function TaskDetailSidebar({
     if (!newSubtaskTitle.trim()) return
 
     const newSubtask: Subtask = {
-      id: `subtask-${generateId()}`,
       title: newSubtaskTitle,
       completed: false,
     }
@@ -125,7 +124,6 @@ export default function TaskDetailSidebar({
     if (!newCustomFieldName.trim()) return
 
     const newField: CustomField = {
-      id: `field-${generateId()}`,
       name: newCustomFieldName,
       value: newCustomFieldValue,
     }
@@ -221,7 +219,7 @@ export default function TaskDetailSidebar({
               </SelectTrigger>
               <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
                 {columns.map((column) => (
-                  <SelectItem key={column.id} value={column.title}>
+                  <SelectItem key={`column-${column.id}`} value={column.title}>
                     {column.title}
                   </SelectItem>
                 ))}

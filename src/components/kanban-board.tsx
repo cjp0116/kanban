@@ -198,21 +198,22 @@ export default function KanbanBoard() {
         })
         setColumns(newColumns)
         setSelectedTask(updatedTaskFromServer)
-      } else {
-        // Fallback to the original approach if refetch fails
-        const newColumns = columns.map((column) => {
-          return {
-            ...column,
-            tasks: column.tasks
-              .filter((task, index, self) =>
-                self.findIndex(t => t.id === task.id) === index
-              )
-              .map((task) => (task.id === updatedTask.id ? updatedTask : task)),
-          }
-        })
-        setColumns(newColumns)
-        setSelectedTask(updatedTask)
       }
+      // else {
+      //   // Fallback to the original approach if refetch fails
+      //   const newColumns = columns.map((column) => {
+      //     return {
+      //       ...column,
+      //       tasks: column.tasks
+      //         .filter((task, index, self) =>
+      //           self.findIndex(t => t.id === task.id) === index
+      //         )
+      //         .map((task) => (task.id === updatedTask.id ? updatedTask : task)),
+      //     }
+      //   })
+      //   setColumns(newColumns)
+      //   setSelectedTask(updatedTask)
+      // }
 
       toast({
         title: "Task updated",
@@ -425,7 +426,7 @@ export default function KanbanBoard() {
       <div className="flex gap-4 h-full">
         {columns.map((column) => (
           <Column
-            key={column.id}
+            key={`column-${column.id}`}
             column={column}
             onAddTask={addTask}
             onTaskClick={setSelectedTask}

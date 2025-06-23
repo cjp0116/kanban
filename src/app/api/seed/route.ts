@@ -1,6 +1,6 @@
-import bcrypt from "bcryptjs";
+
 import postgres from "postgres";
-import { generateMockTasks } from "@/lib/mock-data";
+
 import { NextResponse } from "next/server";
 
 const sql = postgres(process.env.POSTGRES_URL!, { prepare: false });

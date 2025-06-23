@@ -40,22 +40,25 @@ export interface Rule {
 }
 
 export interface RuleCondition {
-  type: "due-date" | "subtasks-completed" | "custom-field"
+  type: "due_date" | "subtasks_completed" | "custom_field"
   field?: string
   operator:
+  | "equal"
+  | "not_equal"
+  | "contain"
   | "equals"
-  | "not-equals"
-  | "contains"
-  | "greater-than"
-  | "less-than"
-  | "is-empty"
-  | "is-not-empty"
-  | "is-overdue"
-  | "all-completed"
+  | "greater_than"
+  | "less_than"
+  | "is_empty"
+  | "is_not_empty"
+  | "is_overdue"
+  | "all_completed"
+  | "is_not_overdue"
+  | "all_not_completed"
   value?: string
 }
 
 export interface RuleAction {
-  type: "move-to-column"
+  type: "move_to_column"
   targetColumnId: string
 }
